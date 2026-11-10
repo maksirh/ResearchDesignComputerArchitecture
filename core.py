@@ -69,19 +69,23 @@ class NetworkAnalyzer:
         self.graph = nx.from_numpy_array(self.matrix)
 
     def analyze(self):
+        if self.num_nodes > 0 and not nx.is_connected(self.graph):
+            components = nx.number_connected_components(self.graph)
+            raise ValueError(f"Граф незв'язний ({components} компонент): діаметр не визначений")
+
         degrees = [deg for node, deg in self.graph.degree()]
-        S = max(degrees) if degrees else 0
+        S = int(max(degrees)) if degrees else 0
         shortest_paths = nx.floyd_warshall_numpy(self.graph)
         D = int(np.max(shortest_paths)) if self.num_nodes > 0 else 0
 
         if self.num_nodes > 1:
             total_paths_sum = np.sum(shortest_paths)
-            aD = total_paths_sum / (self.num_nodes * (self.num_nodes - 1))
+            aD = float(total_paths_sum / (self.num_nodes * (self.num_nodes - 1)))
         else:
-            aD = 0
+            aD = 0.0
 
         C = D * S
-        T = 2 * aD * S
+        T = 2 * aD / S if S > 0 else 0.0
 
         return {
             "Кількість вузлів (N)": self.num_nodes,

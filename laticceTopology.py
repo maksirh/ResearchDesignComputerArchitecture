@@ -145,7 +145,7 @@ class LatticeTopologyVisualizer(BaseNetworkVisualizer):
 
 if __name__ == "__main__":
     print("Генерація таблиці масштабування (решітка k×k, до 1000 вузлів)...")
-    max_side = math.isqrt(1000 // PROCESSORS_IN_CLUSTER)  # 11 -> 121 кластер, 968 вузлів
+    max_side = math.isqrt(1000 // PROCESSORS_IN_CLUSTER)
     df = NetworkAnalyzer.generate_scaling_table(
         None, LatticeTopologyNetwork,
         cluster_counts=[k * k for k in range(1, max_side + 1)],

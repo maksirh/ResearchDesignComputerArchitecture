@@ -93,11 +93,14 @@ class NetworkAnalyzer:
         }
 
     @staticmethod
-    def generate_scaling_table(max_clusters, network_class, cluster_step=1):
+    def generate_scaling_table(max_clusters, network_class, cluster_step=1, cluster_counts=None):
         results = []
 
-        counts = [1] + list(range(cluster_step, max_clusters + 1, cluster_step))
-        counts = sorted(list(set(counts)))
+        if cluster_counts is not None:
+            counts = list(cluster_counts)
+        else:
+            counts = [1] + list(range(cluster_step, max_clusters + 1, cluster_step))
+            counts = sorted(list(set(counts)))
 
         for num_clusters in counts:
             network = network_class(num_clusters)

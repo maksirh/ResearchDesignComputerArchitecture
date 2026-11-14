@@ -107,6 +107,7 @@ if __name__ == "__main__":
     df = NetworkAnalyzer.generate_scaling_table(17, LinearTopologyNetwork)
     print(df.to_string(index=False))
 
+
     # Візуалізація
     network = LinearTopologyNetwork(4)
     visualizer = LinearTopologyVisualizer(network.build_network(), 4)

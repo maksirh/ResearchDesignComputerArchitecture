@@ -18,6 +18,10 @@ BASE_INTERNAL_EDGES = [
 ]
 
 
+def cluster_level(cluster_idx):
+    return (cluster_idx + 1).bit_length() - 1
+
+
 class TreeTopologyNetwork(BaseClusterNetwork):
     def __init__(self, num_clusters):
         super().__init__(num_clusters, PROCESSORS_IN_CLUSTER, BASE_INTERNAL_EDGES)
@@ -39,12 +43,25 @@ class TreeTopologyNetwork(BaseClusterNetwork):
                 self.adjacency_matrix[curr_base + 7, right_base + 0] = 1
                 self.adjacency_matrix[right_base + 0, curr_base + 7] = 1
 
+    def _connect(self, cluster_a, local_a, cluster_b, local_b):
+        a = cluster_a * self.processors_in_cluster + local_a - 1
+        b = cluster_b * self.processors_in_cluster + local_b - 1
+        self.adjacency_matrix[a, b] = 1
+        self.adjacency_matrix[b, a] = 1
+
     def _add_irregular_edges(self):
         for i in range(self.num_clusters - 1):
-            curr_base = i * self.processors_in_cluster
-            next_base = (i + 1) * self.processors_in_cluster
-            self.adjacency_matrix[curr_base + 3, next_base + 4] = 1
-            self.adjacency_matrix[next_base + 4, curr_base + 3] = 1
+            right = i + 1
+            if cluster_level(i) != cluster_level(right):
+                continue
+
+            nephew_right = 2 * right + 1
+            if nephew_right < self.num_clusters:
+                self._connect(i, 5, nephew_right, 2)
+
+            nephew_left = 2 * i + 2
+            if nephew_left < self.num_clusters:
+                self._connect(right, 4, nephew_left, 3)
 
 
 class TreeTopologyVisualizer(BaseNetworkVisualizer):
@@ -57,7 +74,7 @@ class TreeTopologyVisualizer(BaseNetworkVisualizer):
         LEVEL_DY = 14
 
         for cluster_idx in range(self.num_clusters):
-            level = (cluster_idx + 1).bit_length() - 1
+            level = cluster_level(cluster_idx)
             pos_in_level = cluster_idx - (2 ** level - 1)
 
             span = LEAF_DX * (2 ** (depth - 1 - level))
@@ -72,8 +89,7 @@ class TreeTopologyVisualizer(BaseNetworkVisualizer):
         self._calculate_positions()
         plt.figure(figsize=(16, 10))
 
-        internal_edges, regular_edges = [], []
-        irregular_arcs, irregular_lines = [], []
+        internal_edges, regular_edges, irregular_edges = [], [], []
 
         for u, v in self.graph.edges():
             cluster_u = (u - 1) // self.processors_in_cluster
@@ -81,30 +97,14 @@ class TreeTopologyVisualizer(BaseNetworkVisualizer):
 
             if cluster_u == cluster_v:
                 internal_edges.append((u, v))
-            elif abs(cluster_u - cluster_v) >= 1:
-                u_local = (u - 1) % self.processors_in_cluster + 1
-                v_local = (v - 1) % self.processors_in_cluster + 1
-
-                if (u_local in [7, 8] and v_local == 1) or (v_local in [7, 8] and u_local == 1):
-                    regular_edges.append((u, v))
-                else:
-                    level_u = (cluster_u + 1).bit_length()
-                    level_v = (cluster_v + 1).bit_length()
-
-                    if level_u == level_v:
-                        irregular_arcs.append((u, v))
-                    else:
-                        irregular_lines.append((u, v))
+            elif (max(cluster_u, cluster_v) - 1) // 2 == min(cluster_u, cluster_v):
+                regular_edges.append((u, v))      # батько - син
+            else:
+                irregular_edges.append((u, v))
 
         nx.draw_networkx_edges(self.graph, self.pos, edgelist=internal_edges, edge_color='gray', width=1.5)
         nx.draw_networkx_edges(self.graph, self.pos, edgelist=regular_edges, edge_color='#0055ff', width=2.5)
-
-        nx.draw_networkx_edges(self.graph, self.pos, edgelist=irregular_arcs,
-                               edge_color='#2ca02c', width=2.0, style='dashed',
-                               connectionstyle="arc3,rad=0.2",        # Малюємо прямі для переходів між рівнями
-                               arrows=True, arrowstyle='-', node_size=400)
-
-        nx.draw_networkx_edges(self.graph, self.pos, edgelist=irregular_lines,
+        nx.draw_networkx_edges(self.graph, self.pos, edgelist=irregular_edges,
                                edge_color='#2ca02c', width=2.0, style='dashed')
 
         nx.draw_networkx_nodes(self.graph, self.pos, node_color='#aadaff', node_size=400, edgecolors='#333333',
@@ -125,10 +125,10 @@ if __name__ == "__main__":
     print("...\n")
     print(df.tail(10).to_string(index=False))
 
-    csv_filename = "scaling_table_lab2.csv"
-    df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
-    print(f"\nТаблицю успішно збережено у файл: {csv_filename}")
+    excel_filename = "scaling_table_lab1.xlsx"
+    df.to_excel(excel_filename, index=False, sheet_name="Масштабування ЛР1")
+    print(f"Таблицю збережено у {excel_filename}\n")
 
-    network = TreeTopologyNetwork(7)
-    visualizer = TreeTopologyVisualizer(network.build_network(), 7)
+    network = TreeTopologyNetwork(17)
+    visualizer = TreeTopologyVisualizer(network.build_network(), 17)
     visualizer.draw()
